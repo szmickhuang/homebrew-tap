@@ -18,8 +18,8 @@ class Crush < Formula
     # 中国大陆/弱网环境：proxy.golang.org 不稳，用 goproxy.cn 兜底
     ENV["GOPROXY"] = "https://goproxy.cn,https://proxy.golang.org,direct"
     ldflags = "-s -w -X github.com/charmbracelet/crush/internal/version.Version=v#{version}"
-    system "go", "build", *std_go_args(ldflags: ldflags), "."
-    bin.install "crush"
+    # 直接输出到 prefix/bin，避免 bin.install 找不到文件
+    system "go", "build", *std_go_args(ldflags: ldflags), "-o", bin/"crush", "."
   end
 
   test do
