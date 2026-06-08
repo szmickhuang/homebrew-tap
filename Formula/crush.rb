@@ -14,9 +14,8 @@ class Crush < Formula
 
   depends_on "go" => :build
 
-  ldflags = "-s -w -X github.com/charmbracelet/crush/internal/version.Version=v#{version}"
-
   def install
+    ldflags = "-s -w -X github.com/charmbracelet/crush/internal/version.Version=v#{version}"
     system "go", "build", *std_go_args(ldflags: ldflags), "."
     bin.install "crush"
   end
