@@ -10,10 +10,12 @@ jobs:
   audit:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Homebrew
         run: brew update
       - name: Run brew audit
-        run: brew audit --strict --online Formula/crush.rb
+        # brew 5.x+ 禁用 `brew audit [path ...]`，必须用 `[name ...]`
+        # name 形式是 `user/tap/formula`
+        run: brew audit --strict --online szmickhuang/tap/crush
       - name: Run brew style
-        run: brew style Formula/crush.rb
+        run: brew style szmickhuang/tap/crush
