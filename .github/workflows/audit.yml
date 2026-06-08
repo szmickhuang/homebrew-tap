@@ -19,7 +19,10 @@ jobs:
       - name: Tap own repository from local checkout
         # runner 默认不 tap 自己，得手动 tap（用 checkout 出来的本地路径，
         # 避免 brew tap 默认从 GitHub 再 clone 一遍）
-        run: brew tap szmickhuang/tap "$GITHUB_WORKSPACE"
+        # 同时把 formula 文件改成 644（brew audit --strict 要求 a+r）
+        run: |
+          chmod -R a+r "$GITHUB_WORKSPACE/Formula"
+          brew tap szmickhuang/tap "$GITHUB_WORKSPACE"
       - name: Run brew audit
         # brew 5.x+ 禁用 `brew audit [path ...]`，必须用 `[name ...]`
         # name 形式是 `user/tap/formula`
