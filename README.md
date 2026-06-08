@@ -1,4 +1,4 @@
-# MickChen's Homebrew Tap
+# szmickhuang's Homebrew Tap
 
 Personal Homebrew tap for tools not yet (or no longer) in homebrew-core.
 
@@ -11,7 +11,7 @@ Personal Homebrew tap for tools not yet (or no longer) in homebrew-core.
 ## Install
 
 ```bash
-brew tap MickChen/tap
+brew tap szmickhuang/tap
 brew install crush
 ```
 
