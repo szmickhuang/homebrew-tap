@@ -3,9 +3,12 @@ on:
   push:
     paths:
       - "Formula/**"
+      - ".github/workflows/**"
   pull_request:
     paths:
       - "Formula/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
 jobs:
   audit:
     runs-on: macos-latest
