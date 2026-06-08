@@ -1,0 +1,19 @@
+name: Audit
+on:
+  push:
+    paths:
+      - "Formula/**"
+  pull_request:
+    paths:
+      - "Formula/**"
+jobs:
+  audit:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Homebrew
+        run: brew update
+      - name: Run brew audit
+        run: brew audit --strict --online Formula/crush.rb
+      - name: Run brew style
+        run: brew style Formula/crush.rb
