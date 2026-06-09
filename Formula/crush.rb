@@ -9,7 +9,8 @@ class Crush < Formula
 
   livecheck do
     # 显式给 GitHub 主页（不能用 :url，brew livecheck 不会展开到 releases 页面）
-    url "https://github.com/charmbracelet/crush"
+    # brew audit 建议用 :homepage 简写
+    url :homepage
     strategy :github_latest_release
   end
 
