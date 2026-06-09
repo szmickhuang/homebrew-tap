@@ -8,7 +8,8 @@ class Crush < Formula
   head "https://github.com/charmbracelet/crush.git", branch: "main"
 
   livecheck do
-    url :url
+    # 显式给 GitHub 主页（不能用 :url，brew livecheck 不会展开到 releases 页面）
+    url "https://github.com/charmbracelet/crush"
     strategy :github_latest_release
   end
 
