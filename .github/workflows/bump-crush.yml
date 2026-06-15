@@ -1,0 +1,143 @@
+name: Bump crush formula
+
+# 监听 charmbracelet/crush 的 release，有新版就自动改本仓库 Formula/crush.rb 并开 PR。
+# 触发方式：
+#   1) 每天 03:00 UTC (= 11:00 CST) 定时检查
+#   2) 手动：Actions → Bump crush formula → Run workflow
+#   3) 手动指定版本（应急用）：workflow_dispatch → force_version 输入框填 v0.78.0 等
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      force_version:
+        description: 'Force specific version (e.g. v0.78.0). Leave blank for latest.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get current crush version from formula
+        id: current
+        run: |
+          CURRENT=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' Formula/crush.rb | head -1)
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+
+      - name: Get target crush version
+        id: latest
+        run: |
+          if [ -n "${{ inputs.force_version }}" ]; then
+            TARGET="${{ inputs.force_version }}"
+            echo "Using forced version: $TARGET"
+          else
+            TARGET=$(curl -s -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/charmbracelet/crush/releases/latest \
+              | jq -r '.tag_name')
+          fi
+          # Sanity check
+          if ! [[ "$TARGET" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Bad version string: $TARGET"
+            exit 1
+          fi
+          echo "version=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Check if update needed
+        id: check
+        run: |
+          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            echo "✓ Already at ${{ steps.current.outputs.version }}, no action needed"
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+            echo "↗ ${{ steps.current.outputs.version }} → ${{ steps.latest.outputs.version }}"
+          fi
+
+      - name: Download tarball and compute sha256
+        if: steps.check.outputs.up_to_date == 'false'
+        id: sha
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.latest.outputs.version }}"        # e.g. v0.77.0
+          VERSION_NUM="${VERSION#v}"                            # e.g. 0.77.0
+          URL="https://github.com/charmbracelet/crush/archive/refs/tags/${VERSION}.tar.gz"
+          curl -sL --fail-with-body -o crush.tar.gz "$URL"
+          SHA256=$(sha256sum crush.tar.gz | cut -d' ' -f1)
+          SIZE=$(stat -c '%s' crush.tar.gz)
+          echo "version=$VERSION"        >> "$GITHUB_OUTPUT"
+          echo "version_num=$VERSION_NUM" >> "$GITHUB_OUTPUT"
+          echo "url=$URL"                >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256"          >> "$GITHUB_OUTPUT"
+          echo "size=$SIZE"              >> "$GITHUB_OUTPUT"
+          echo "Downloaded $URL ($SIZE bytes), sha256=$SHA256"
+
+      - name: Update Formula/crush.rb
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          set -euo pipefail
+          URL="${{ steps.sha.outputs.url }}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+          VERSION="${{ steps.sha.outputs.version }}"
+
+          # Use Python for clean substitution (sed would have quoting issues with slashes)
+          python3 <<PY
+          import re
+          path = 'Formula/crush.rb'
+          with open(path, 'r', encoding='utf-8') as f:
+              content = f.read()
+          # Replace url line
+          new_content, n_url = re.subn(
+              r'url "https://github.com/charmbracelet/crush/archive/refs/tags/v[0-9.]+\.tar\.gz"',
+              f'url "{URL}"',
+              content,
+              count=1,
+          )
+          if n_url != 1:
+              raise SystemExit(f'Expected 1 url replacement, got {n_url}')
+          # Replace sha256 line
+          new_content, n_sha = re.subn(
+              r'sha256 "[a-f0-9]{64}"',
+              f'sha256 "{SHA256}"',
+              new_content,
+              count=1,
+          )
+          if n_sha != 1:
+              raise SystemExit(f'Expected 1 sha256 replacement, got {n_sha}')
+          with open(path, 'w', encoding='utf-8') as f:
+              f.write(new_content)
+          print(f'✓ Updated url + sha256 for {VERSION}')
+          PY
+
+          echo "--- diff ---"
+          git --no-pager diff Formula/crush.rb
+
+      - name: Create Pull Request
+        if: steps.check.outputs.up_to_date == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'crush: ${{ steps.sha.outputs.version }}'
+          title: 'crush ${{ steps.sha.outputs.version }}'
+          body: |
+            Auto-bump crush formula to upstream **${{ steps.sha.outputs.version }}**.
+
+            - URL: ${{ steps.sha.outputs.url }}
+            - SHA256: `${{ steps.sha.outputs.sha256 }}`
+            - Tarball size: ${{ steps.sha.outputs.size }} bytes
+
+            Triggered by `${{ github.event_name }}`.
+
+            After merge, the cloud server `brew-upgrade.sh` (cron `0 3 * * *`) will auto-install.
+          branch: bump-crush-${{ steps.sha.outputs.version_num }}
+          delete-branch: true
