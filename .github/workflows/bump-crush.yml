@@ -84,22 +84,29 @@ jobs:
 
       - name: Update Formula/crush.rb
         if: steps.check.outputs.up_to_date == 'false'
+        env:
+          URL: ${{ steps.sha.outputs.url }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+          VERSION: ${{ steps.sha.outputs.version }}
         run: |
-          set -euo pipefail
-          URL="${{ steps.sha.outputs.url }}"
-          SHA256="${{ steps.sha.outputs.sha256 }}"
-          VERSION="${{ steps.sha.outputs.version }}"
-
-          # Use Python for clean substitution (sed would have quoting issues with slashes)
-          python3 <<PY
+          # Use Python for clean substitution (sed would have quoting issues with slashes).
+          # Pass values via env (type-safe) + heredoc with 'PY' (no bash expansion inside).
+          # Previous version used unquoted <<PY and referenced URL/SHA256 inside an
+          # f-string, so bash never expanded them and Python raised NameError —
+          # step never actually executed because workflow was always up-to-date.
+          python3 <<'PY'
+          import os
           import re
+          url = os.environ['URL']
+          sha256 = os.environ['SHA256']
+          version = os.environ['VERSION']
           path = 'Formula/crush.rb'
           with open(path, 'r', encoding='utf-8') as f:
               content = f.read()
           # Replace url line
           new_content, n_url = re.subn(
               r'url "https://github.com/charmbracelet/crush/archive/refs/tags/v[0-9.]+\.tar\.gz"',
-              f'url "{URL}"',
+              f'url "{url}"',
               content,
               count=1,
           )
@@ -108,7 +115,7 @@ jobs:
           # Replace sha256 line
           new_content, n_sha = re.subn(
               r'sha256 "[a-f0-9]{64}"',
-              f'sha256 "{SHA256}"',
+              f'sha256 "{sha256}"',
               new_content,
               count=1,
           )
@@ -116,7 +123,7 @@ jobs:
               raise SystemExit(f'Expected 1 sha256 replacement, got {n_sha}')
           with open(path, 'w', encoding='utf-8') as f:
               f.write(new_content)
-          print(f'✓ Updated url + sha256 for {VERSION}')
+          print(f'✓ Updated url + sha256 for {version}')
           PY
 
           echo "--- diff ---"
