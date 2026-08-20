@@ -1,9 +1,9 @@
 class Crush < Formula
   desc "AI-powered coding assistant for the terminal"
   homepage "https://github.com/charmbracelet/crush"
-  url "https://github.com/charmbracelet/crush/archive/refs/tags/v0.89.0.tar.gz"
+  url "https://github.com/charmbracelet/crush/archive/refs/tags/v0.90.0.tar.gz"
   # 不要单独写版号行，URL 里的 v0.77.0 brew 会自动推断
-  sha256 "b0a2e9abd48d70d26dbcfc1aa8b810de104991e9bfa80252968c2fa4fc6463a5"
+  sha256 "47a8b5ca440747b66f8aa8ea753ce1ef552e6917ad42237c4999bae928c0b17b"
   license "MIT"
   head "https://github.com/charmbracelet/crush.git", branch: "main"
 
